@@ -8,6 +8,7 @@
   "bundle": {
     "active": true,
     "targets": "all",
+    "publisher": "Genexis",
     "icon": [
       "icons/icon.png",
       "icons/icon.rgba",
@@ -16,9 +17,9 @@
     ],
     "createUpdaterArtifacts": false
   },
-  "productName": "easytier-gui",
+  "productName": "Genexis",
   "version": "2.6.4",
-  "identifier": "com.kkrainbow.easytier",
+  "identifier": "com.genexis.gui",
   "plugins": {
     "shell": {
       "open": "^.+"
@@ -27,7 +28,7 @@
   "app": {
     "windows": [
       {
-        "title": "easytier-gui",
+        "title": "Genexis",
         "width": 800,
         "height": 600
       }

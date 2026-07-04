@@ -1,7 +1,7 @@
 [package]
-name = "easytier-gui"
+name = "genexis-gui"
 version = "2.6.4"
-description = "EasyTier GUI"
+description = "Genexis GUI"
 authors = ["you"]
 edition.workspace = true
 

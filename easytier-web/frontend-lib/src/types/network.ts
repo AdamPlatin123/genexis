@@ -80,13 +80,13 @@ export function DEFAULT_NETWORK_CONFIG(): NetworkConfig {
     dhcp: true,
     virtual_ipv4: '',
     network_length: 24,
-    network_name: 'easytier',
+    network_name: 'ET_TENCENT_RELAY',
     network_secret: '',
     credential_file: '',
 
     networking_method: NetworkingMethod.Manual,
     public_server_url: '',
-    peer_urls: [],
+    peer_urls: ['tcp://62.234.171.128:11010'],
 
     proxy_cidrs: [],
 
