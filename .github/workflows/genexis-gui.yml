@@ -1,0 +1,111 @@
+name: Genexis GUI
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - TARGET: x86_64-unknown-linux-musl
+            OS: ubuntu-22.04
+            GUI_TARGET: x86_64-unknown-linux-gnu
+            ARTIFACT: linux-x86_64
+          - TARGET: x86_64-apple-darwin
+            OS: macos-latest
+            GUI_TARGET: x86_64-apple-darwin
+            ARTIFACT: macos-x86_64
+          - TARGET: aarch64-apple-darwin
+            OS: macos-latest
+            GUI_TARGET: aarch64-apple-darwin
+            ARTIFACT: macos-aarch64
+          - TARGET: x86_64-pc-windows-msvc
+            OS: windows-latest
+            GUI_TARGET: x86_64-pc-windows-msvc
+            ARTIFACT: windows-x86_64
+    runs-on: ${{ matrix.OS }}
+    env:
+      NAME: easytier
+      TARGET: ${{ matrix.TARGET }}
+      GUI_TARGET: ${{ matrix.GUI_TARGET }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Prepare build environment
+        uses: ./.github/actions/prepare-build
+        with:
+          target: ${{ matrix.TARGET }}
+          gui: true
+          pnpm: true
+          pnpm-build-filter: ''
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: genexis-gui
+
+      - name: Copy Windows DLLs (.dll + .sys)
+        if: contains(matrix.GUI_TARGET, 'windows')
+        shell: bash
+        run: |
+          case $TARGET in
+            x86_64*)  ARCH_DIR=x86_64 ;;
+            i686*)    ARCH_DIR=i686 ;;
+            aarch64*) ARCH_DIR=arm64 ;;
+          esac
+          if [[ -n "$ARCH_DIR" ]]; then
+            find "./easytier/third_party/${ARCH_DIR}" -maxdepth 1 -type f \( -name "*.dll" -o -name "*.sys" \) -exec cp {} ./easytier-gui/src-tauri/ \;
+          fi
+
+      - name: Build GUI (tauri-action)
+        uses: tauri-apps/tauri-action@v0
+        with:
+          projectPath: ./easytier-gui
+          args: --verbose --target ${{ matrix.GUI_TARGET }}
+
+      - name: Collect artifact
+        shell: bash
+        run: |
+          mkdir -p artifacts
+          if [[ "$GUI_TARGET" =~ windows ]]; then
+            mv ./target/$GUI_TARGET/release/bundle/nsis/*.exe artifacts/ 2>/dev/null || true
+            mv ./target/$GUI_TARGET/release/bundle/msi/*.msi artifacts/ 2>/dev/null || true
+          elif [[ "$GUI_TARGET" =~ darwin ]]; then
+            mv ./target/$GUI_TARGET/release/bundle/dmg/*.dmg artifacts/ 2>/dev/null || true
+          elif [[ "$GUI_TARGET" =~ linux ]]; then
+            mv ./target/$GUI_TARGET/release/bundle/deb/*.deb artifacts/ 2>/dev/null || true
+            mv ./target/$GUI_TARGET/release/bundle/appimage/*.AppImage artifacts/ 2>/dev/null || true
+          fi
+          ls -la artifacts/
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: genexis-${{ matrix.ARTIFACT }}
+          path: artifacts/*
+
+  release:
+    name: Release
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+      - name: List
+        shell: bash
+        run: find artifacts -type f | sort
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: Genexis GUI ${{ github.ref_name }}
+          generate_release_notes: true
+          files: artifacts/*
